@@ -38,8 +38,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The tag's own tree, so a release cut for an older tag takes its notes and assets from that
+      # commit rather than from whatever started the run. Empty keeps the triggering commit.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
           persist-credentials: false
 
