@@ -25,6 +25,9 @@ What the preset sets on top of `config:recommended`:
 - **No dependency dashboard issue.** Open pull requests are the list of what is pending.
 - **No pull request caps.** Each run opens one for every update published since the last, instead of spreading
   them over later runs.
+- **Rebased whenever `main` moves.** A pull request's checks ran against the `main` it was opened on; merging
+  another one first leaves that combination untested. `rebaseWhen: behind-base-branch` has the next run rebase
+  every pull request that has fallen behind, so its checks run again on top of what was merged.
 
 These repositories do not commit `Cargo.lock`: every build resolves dependencies afresh and so takes any release
 a `Cargo.toml` range allows. Renovate therefore opens a pull request only for a release outside the range - a new

@@ -5,5 +5,6 @@
     ":disableDependencyDashboard",
     ":disableRateLimiting"
   ],
-  "semanticCommits": "enabled"
+  "semanticCommits": "enabled",
+  "rebaseWhen": "behind-base-branch"
 }
