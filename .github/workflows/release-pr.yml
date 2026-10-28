@@ -1,0 +1,63 @@
+# Opens the release PR: the next version from the conventional commits since the last tag, the
+# version files moved to it, and CHANGELOG.md regenerated with git-cliff. Merging the PR releases
+# it through tag-release.yml. The commit is authored by github-actions[bot], so no personal
+# address reaches the history.
+name: Release PR
+
+on:
+  workflow_call:
+    inputs:
+      bump:
+        description: Shell that moves the repository's version files to $VERSION (with the leading v) and $VERSION_NUMBER (without it).
+        type: string
+        required: true
+      version:
+        description: Version to release, such as v1.14.4+sm.1; defaults to what git-cliff computes from the commits.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        with:
+          tool: git-cliff@2.14.2
+
+      - name: Open the release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUMP: ${{ inputs.bump }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          VERSION=${REQUESTED:-$(git cliff --bumped-version)}
+          VERSION_NUMBER=${VERSION#v}
+          export VERSION VERSION_NUMBER
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "::error::$VERSION is already tagged"
+            exit 1
+          fi
+          branch="chore/release-$VERSION"
+          git switch -c "$branch"
+          bash -euo pipefail -c "$BUMP"
+          git cliff --tag "$VERSION" -o CHANGELOG.md
+          git add -u
+          git add CHANGELOG.md
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "chore: release $VERSION"
+          git push origin "$branch"
+          notes=$(git cliff --tag "$VERSION" --unreleased --strip all)
+          gh pr create --base "$GITHUB_REF_NAME" --head "$branch" \
+            --title "chore: release $VERSION" \
+            --body "$notes"

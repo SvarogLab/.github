@@ -1,0 +1,76 @@
+# GitHub Release for a version tag. Its assets are binaries rust.yml built in the tag's own run
+# (download-binaries) or files in the tag's checkout; nothing is rebuilt here.
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      download-binaries:
+        description: Download the run's rust.yml `binaries-*` artifacts into `binaries/` before prepare, as `binaries/<arch>/release/` and `binaries/windows-<arch>/release/`.
+        type: boolean
+        default: false
+      prepare:
+        description: Shell run on the tag's checkout before the release is created, such as renaming binaries into release assets.
+        type: string
+        default: ""
+      assets:
+        description: Space-separated paths, relative to the checkout, attached to the GitHub Release.
+        type: string
+        default: ""
+      latest:
+        description: Mark the GitHub Release as Latest. Turn off for releases cut from an older line.
+        type: boolean
+        default: true
+      tag:
+        description: Release tag; defaults to the tag that triggered the run. Exposed to prepare as $RELEASE_TAG.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  github-release:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        with:
+          tool: git-cliff@2.14.2
+
+      - uses: actions/download-artifact@v8
+        if: inputs.download-binaries
+        with:
+          path: binaries/
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: Prepare the release assets
+        if: inputs.prepare != ''
+        env:
+          PREPARE: ${{ inputs.prepare }}
+        run: bash -euo pipefail -c "$PREPARE"
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSETS: ${{ inputs.assets }}
+          LATEST: ${{ inputs.latest }}
+        # The notes are the tag's CHANGELOG.md section: GitHub's generated notes would list the
+        # release PR itself and its bot author as a new contributor.
+        run: |
+          read -ra assets <<<"$ASSETS"
+          git cliff --current --strip all > "$RUNNER_TEMP/notes.md"
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
+            --title "$RELEASE_TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest="$LATEST"

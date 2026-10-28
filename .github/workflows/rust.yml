@@ -1,0 +1,183 @@
+# clippy, tests and the release build run on each arch's own runner, for the target that ships, so
+# a binary is the one a local build for that target produces. Linux builds the musl target;
+# musl-tools supplies the `musl-gcc` that crates with a C part (aws-lc-sys among them) build with.
+# Windows builds the MSVC target, and only for a caller that says what to build there.
+name: Rust
+
+on:
+  workflow_call:
+    inputs:
+      binaries:
+        description: Space-separated binary names to upload from each Linux arch's release build.
+        type: string
+        default: ""
+      build-args:
+        description: Extra Linux `cargo build --release` arguments, such as `-p name` to build part of a workspace.
+        type: string
+        default: ""
+      windows-args:
+        description: Cargo arguments choosing what clippy, test and build cover on Windows, such as `-p name`. Empty skips Windows.
+        type: string
+        default: ""
+      windows-binaries:
+        description: Space-separated binary names, without `.exe`, to upload from each Windows arch's release build.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - run: cargo fmt --all -- --check
+
+  # Its own job, so an advisory hit is unambiguous in the checks list rather than buried in the
+  # same log as an unrelated clippy or test failure.
+  audit:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+
+  build:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            rust_target: x86_64-unknown-linux-musl
+            runner: ubuntu-26.04
+          - arch: arm64
+            rust_target: aarch64-unknown-linux-musl
+            runner: ubuntu-26.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the musl toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends musl-tools
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rust_target }}
+
+      - name: clippy
+        run: cargo clippy --target ${{ matrix.rust_target }} --all-targets --all-features -- -D warnings
+
+      - name: test
+        run: cargo test --target ${{ matrix.rust_target }}
+
+      - name: build
+        env:
+          BUILD_ARGS: ${{ inputs.build-args }}
+        run: |
+          read -ra args <<<"$BUILD_ARGS"
+          cargo build --release --target ${{ matrix.rust_target }} "${args[@]}"
+
+      - name: Stage binaries at their TARGETARCH path
+        if: inputs.binaries != ''
+        env:
+          BINARIES: ${{ inputs.binaries }}
+        run: |
+          read -ra names <<<"$BINARIES"
+          mkdir -p "staged/${{ matrix.arch }}/release"
+          for name in "${names[@]}"; do
+            cp "target/${{ matrix.rust_target }}/release/$name" "staged/${{ matrix.arch }}/release/"
+          done
+
+      - uses: actions/upload-artifact@v7
+        if: inputs.binaries != ''
+        with:
+          name: binaries-${{ matrix.arch }}
+          path: staged/
+          if-no-files-found: error
+          retention-days: 1
+
+  # Windows-only code compiles to nothing on Linux, so a part of a workspace that is Windows code is
+  # checked and tested here, on Windows, or not at all.
+  windows:
+    if: inputs.windows-args != ''
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            rust_target: x86_64-pc-windows-msvc
+            runner: windows-2025
+          - arch: arm64
+            rust_target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+    env:
+      WINDOWS_ARGS: ${{ inputs.windows-args }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rust_target }}
+
+      - name: clippy
+        run: |
+          read -ra args <<<"$WINDOWS_ARGS"
+          cargo clippy --target ${{ matrix.rust_target }} --all-targets --all-features "${args[@]}" -- -D warnings
+
+      - name: test
+        run: |
+          read -ra args <<<"$WINDOWS_ARGS"
+          cargo test --target ${{ matrix.rust_target }} "${args[@]}"
+
+      - name: build
+        run: |
+          read -ra args <<<"$WINDOWS_ARGS"
+          cargo build --release --target ${{ matrix.rust_target }} "${args[@]}"
+
+      - name: Stage binaries at their TARGETARCH path
+        if: inputs.windows-binaries != ''
+        env:
+          BINARIES: ${{ inputs.windows-binaries }}
+        run: |
+          read -ra names <<<"$BINARIES"
+          dir="staged/windows-${{ matrix.arch }}/release"
+          mkdir -p "$dir"
+          for name in "${names[@]}"; do
+            cp "target/${{ matrix.rust_target }}/release/$name.exe" "$dir/"
+          done
+
+      - uses: actions/upload-artifact@v7
+        if: inputs.windows-binaries != ''
+        with:
+          name: binaries-windows-${{ matrix.arch }}
+          path: staged/
+          if-no-files-found: error
+          retention-days: 1
