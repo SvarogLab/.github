@@ -1,7 +1,8 @@
 # clippy, tests and the release build run on each arch's own runner, for the target that ships, so
-# a binary is the one a local build for that target produces. Linux builds the musl target;
-# musl-tools supplies the `musl-gcc` that crates with a C part (aws-lc-sys among them) build with.
-# Windows builds the MSVC target, and only for a caller that says what to build there.
+# a binary is the one a local build for that target produces. Linux builds the musl target unless
+# the caller asks for gnu; musl-tools supplies the `musl-gcc` that crates with a C part (aws-lc-sys
+# among them) build with. Windows builds the MSVC target, and only for a caller that says what to
+# build there.
 name: Rust
 
 on:
@@ -13,6 +14,14 @@ on:
         default: ""
       build-args:
         description: Extra Linux `cargo build --release` arguments, such as `-p name` to build part of a workspace.
+        type: string
+        default: ""
+      linux-libc:
+        description: "`musl` for a static binary, or `gnu` for a crate linking a system library musl has no build of, such as pcsc-lite."
+        type: string
+        default: musl
+      apt-packages:
+        description: Space-separated Debian packages installed before the Linux build, such as `libpcsclite-dev`.
         type: string
         default: ""
       windows-args:
@@ -62,38 +71,45 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            rust_target: x86_64-unknown-linux-musl
+            cpu: x86_64
             runner: ubuntu-26.04
           - arch: arm64
-            rust_target: aarch64-unknown-linux-musl
+            cpu: aarch64
             runner: ubuntu-26.04-arm
+    env:
+      RUST_TARGET: ${{ matrix.cpu }}-unknown-linux-${{ inputs.linux-libc }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install the musl toolchain
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends musl-tools
+      - name: Install the system packages
+        if: inputs.linux-libc == 'musl' || inputs.apt-packages != ''
+        env:
+          PACKAGES: ${{ inputs.linux-libc == 'musl' && 'musl-tools' || '' }} ${{ inputs.apt-packages }}
+        run: |
+          read -ra packages <<<"$PACKAGES"
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust_target }}
+          targets: ${{ env.RUST_TARGET }}
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.rust_target }}
+          key: ${{ env.RUST_TARGET }}
 
       - name: clippy
-        run: cargo clippy --target ${{ matrix.rust_target }} --all-targets --all-features -- -D warnings
+        run: cargo clippy --target ${{ env.RUST_TARGET }} --all-targets --all-features -- -D warnings
 
       - name: test
-        run: cargo test --target ${{ matrix.rust_target }}
+        run: cargo test --target ${{ env.RUST_TARGET }}
 
       - name: build
         env:
           BUILD_ARGS: ${{ inputs.build-args }}
         run: |
           read -ra args <<<"$BUILD_ARGS"
-          cargo build --release --target ${{ matrix.rust_target }} "${args[@]}"
+          cargo build --release --target ${{ env.RUST_TARGET }} "${args[@]}"
 
       - name: Stage binaries at their TARGETARCH path
         if: inputs.binaries != ''
@@ -103,7 +119,7 @@ jobs:
           read -ra names <<<"$BINARIES"
           mkdir -p "staged/${{ matrix.arch }}/release"
           for name in "${names[@]}"; do
-            cp "target/${{ matrix.rust_target }}/release/$name" "staged/${{ matrix.arch }}/release/"
+            cp "target/${{ env.RUST_TARGET }}/release/$name" "staged/${{ matrix.arch }}/release/"
           done
 
       - uses: actions/upload-artifact@v7

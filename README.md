@@ -44,7 +44,8 @@ Reusable workflows under [`.github/workflows/`](.github/workflows/), called with
   clippy, tests and the release build: Linux on the musl target for amd64 and arm64, and, when `windows-args` is
   set, Windows on the MSVC target for amd64 and arm64. Code behind `cfg(windows)` compiles to nothing on Linux,
   so a Windows part of a workspace is checked only by the Windows job. `binaries` and `windows-binaries` name the
-  binaries each release build uploads as `binaries-*` artifacts.
+  binaries each release build uploads as `binaries-*` artifacts. A crate linking a system library that musl has
+  no build of, such as pcsc-lite, sets `linux-libc: gnu` and names the `-dev` package in `apt-packages`.
 - [`release-pr.yml`](.github/workflows/release-pr.yml) - opens the release pull request: the next version
   `git-cliff` computes from the commits since the last tag, the version files moved to it by the caller's `bump`
   shell, and `CHANGELOG.md` regenerated. The pull request is opened with `GITHUB_TOKEN`, so no workflow runs on it;
