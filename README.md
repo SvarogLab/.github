@@ -37,8 +37,10 @@ A repository changes any of this for itself by adding keys next to `extends` in 
 
 ## Shared workflows
 
-Reusable workflows under [`.github/workflows/`](.github/workflows/), called with
-`uses: SvarogLab/.github/.github/workflows/<name>.yml@main`.
+Reusable workflows under [`.github/workflows/`](.github/workflows/), called by a version tag:
+`uses: SvarogLab/.github/.github/workflows/<name>.yml@v1`. A ruleset makes `v*` tags immutable - they can be
+neither moved nor deleted - so a caller always runs exactly the workflows it was last checked against. A change
+here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to it in a pull request of its own.
 
 - [`rust.yml`](.github/workflows/rust.yml) - `cargo fmt`, `cargo audit`, and per arch on its own runner
   clippy, tests and the release build: Linux on the musl target for amd64 and arm64, and, when `windows-args` is
@@ -74,21 +76,21 @@ permissions:
 
 jobs:
   rust:
-    uses: SvarogLab/.github/.github/workflows/rust.yml@main
+    uses: SvarogLab/.github/.github/workflows/rust.yml@v1
     with:
       binaries: example
 
   tag:
     needs: rust
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: SvarogLab/.github/.github/workflows/tag-release.yml@main
+    uses: SvarogLab/.github/.github/workflows/tag-release.yml@v1
     permissions:
       contents: write
 
   release:
     needs: tag
     if: needs.tag.outputs.tag != ''
-    uses: SvarogLab/.github/.github/workflows/release.yml@main
+    uses: SvarogLab/.github/.github/workflows/release.yml@v1
     permissions:
       contents: write
     with:
@@ -114,7 +116,7 @@ permissions:
 
 jobs:
   release-pr:
-    uses: SvarogLab/.github/.github/workflows/release-pr.yml@main
+    uses: SvarogLab/.github/.github/workflows/release-pr.yml@v1
     permissions:
       contents: write
       pull-requests: write
