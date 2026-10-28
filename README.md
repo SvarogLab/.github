@@ -25,8 +25,9 @@ What the preset sets on top of `config:recommended`:
 - **No dependency dashboard issue.** Open pull requests are the list of what is pending.
 - **No pull request caps.** Each run opens one for every update published since the last, instead of spreading
   them over later runs.
-- **Weekly lock file maintenance**, during Monday's runs. Updates to direct dependencies only move what they
-  need; this refreshes the transitive ones in `Cargo.lock` and its peers. Renovate's default for it is before
-  04:00, when no run happens, so the schedule is set here.
+
+These repositories do not commit `Cargo.lock`: every build resolves dependencies afresh and so takes any release
+a `Cargo.toml` range allows. Renovate therefore opens a pull request only for a release outside the range - a new
+major version, or a new minor one below 1.0 - and has no lock file to maintain.
 
 A repository changes any of this for itself by adding keys next to `extends` in its own `renovate.json`.
