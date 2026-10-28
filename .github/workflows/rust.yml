@@ -99,17 +99,17 @@ jobs:
           key: ${{ env.RUST_TARGET }}
 
       - name: clippy
-        run: cargo clippy --target ${{ env.RUST_TARGET }} --all-targets --all-features -- -D warnings
+        run: cargo clippy --target "$RUST_TARGET" --all-targets --all-features -- -D warnings
 
       - name: test
-        run: cargo test --target ${{ env.RUST_TARGET }}
+        run: cargo test --target "$RUST_TARGET"
 
       - name: build
         env:
           BUILD_ARGS: ${{ inputs.build-args }}
         run: |
           read -ra args <<<"$BUILD_ARGS"
-          cargo build --release --target ${{ env.RUST_TARGET }} "${args[@]}"
+          cargo build --release --target "$RUST_TARGET" "${args[@]}"
 
       - name: Stage binaries at their TARGETARCH path
         if: inputs.binaries != ''
@@ -119,7 +119,7 @@ jobs:
           read -ra names <<<"$BINARIES"
           mkdir -p "staged/${{ matrix.arch }}/release"
           for name in "${names[@]}"; do
-            cp "target/${{ env.RUST_TARGET }}/release/$name" "staged/${{ matrix.arch }}/release/"
+            cp "target/$RUST_TARGET/release/$name" "staged/${{ matrix.arch }}/release/"
           done
 
       - uses: actions/upload-artifact@v7
