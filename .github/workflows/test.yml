@@ -1,0 +1,37 @@
+# Tests for this repository itself; not meant to be called from other repositories.
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # tests/renovate.sh runs Renovate itself, which needs a newer Node than the runner's.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Run tests/*.sh
+        env:
+          # Renovate's lookups on github.com are rate-limited without one.
+          GITHUB_COM_TOKEN: ${{ github.token }}
+        run: |
+          status=0
+          for t in tests/*.sh; do
+            [ "$t" = tests/lib.sh ] && continue
+            echo "::group::$t"
+            "$t" || status=1
+            echo "::endgroup::"
+          done
+          exit $status

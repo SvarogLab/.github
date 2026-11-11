@@ -6,5 +6,6 @@
     ":disableRateLimiting"
   ],
   "semanticCommits": "enabled",
-  "rebaseWhen": "behind-base-branch"
+  "rebaseWhen": "behind-base-branch",
+  "rangeStrategy": "bump"
 }

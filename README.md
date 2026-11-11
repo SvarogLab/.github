@@ -28,10 +28,18 @@ What the preset sets on top of `config:recommended`:
 - **Rebased whenever `main` moves.** A pull request's checks ran against the `main` it was opened on; merging
   another one first leaves that combination untested. `rebaseWhen: behind-base-branch` has the next run rebase
   every pull request that has fallen behind, so its checks run again on top of what was merged.
+- **Requirements follow the release.** An update raises the requirement to the version it brings, `"1.0.151"` to
+  `"1.0.154"`, a release inside the range included. A repository with `Cargo.lock` gets the lock file moved in
+  the same pull request; one without has no other place where that release would show up. A library that must
+  not raise its consumers' minimum sets `"rangeStrategy": "update-lockfile"` for its `dependencies`.
 
-These repositories do not commit `Cargo.lock`: every build resolves dependencies afresh and so takes any release
-a `Cargo.toml` range allows. Renovate therefore opens a pull request only for a release outside the range - a new
-major version, or a new minor one below 1.0 - and has no lock file to maintain.
+`tests/renovate.sh` checks this by running Renovate in dry-run on fixture repositories, one with `Cargo.lock`
+and one without. It runs Renovate through `npx`, which needs Node 24 or later, and its lookups on github.com need a
+token in `GITHUB_COM_TOKEN`, such as `GITHUB_COM_TOKEN=$(gh auth token)`:
+
+```sh
+tests/renovate.sh
+```
 
 A repository changes any of this for itself by adding keys next to `extends` in its own `renovate.json`.
 
