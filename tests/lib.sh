@@ -1,4 +1,14 @@
-# Sourced by the tests: reports results and makes fixture repositories.
+# Sourced by the tests: pulls one step's `run` out of a workflow, reports results and makes fixture
+# repositories.
+
+# step <workflow.yml> <job> <step id>: prints that step's script.
+step() {
+  "${PYTHON:-python3}" -c '
+import sys, yaml
+steps = yaml.safe_load(open(sys.argv[1]))["jobs"][sys.argv[2]]["steps"]
+print(next(s["run"] for s in steps if s.get("id") == sys.argv[3]))
+' "$@"
+}
 
 fail=0
 # check <description> <want> <got>

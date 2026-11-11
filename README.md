@@ -63,10 +63,10 @@ here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to
   Linux, so a Windows part of a workspace is checked only by the Windows job. `binaries` and `windows-binaries` name the
   binaries each release build uploads as `binaries-*` artifacts. A crate linking a system library that musl has no build
   of, such as pcsc-lite, sets `linux-libc: gnu` and names the `-dev` package in `apt-packages`.
-- [`release-pr.yml`](.github/workflows/release-pr.yml) - opens the release pull request: the next version
-  `git-cliff` computes from the commits since the last tag, the version files moved to it by the caller's `bump`
-  shell, and `CHANGELOG.md` regenerated. The pull request is opened with `GITHUB_TOKEN`, so no workflow runs on it;
-  its only changes are the version and the changelog.
+- [`release-pr.yml`](.github/workflows/release-pr.yml) - opens the release pull request: the next version `git-cliff`
+  computes from the commits since the last tag, the version files moved to it by the caller's `bump` shell, `Cargo.lock`
+  moved with them where the caller commits one, and `CHANGELOG.md` regenerated. The pull request is opened with
+  `GITHUB_TOKEN`, so no workflow runs on it; its only changes are the version and the changelog.
 - [`tag-release.yml`](.github/workflows/tag-release.yml) - tags the merged `chore: release vX.Y.Z` commit on
   `main`. A tag pushed with `GITHUB_TOKEN` starts no workflow, so the caller releases in the same run.
 - [`release.yml`](.github/workflows/release.yml) - creates the GitHub Release for the tag, with the binaries
