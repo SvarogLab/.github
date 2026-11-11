@@ -28,6 +28,10 @@ What the preset sets on top of `config:recommended`:
 - **Rebased whenever `main` moves.** A pull request's checks ran against the `main` it was opened on; merging
   another one first leaves that combination untested. `rebaseWhen: behind-base-branch` has the next run rebase
   every pull request that has fallen behind, so its checks run again on top of what was merged.
+- **Compatible updates in one pull request.** Every minor and patch update from 1.0 up, and every patch below
+  it, arrives in one `non-major` pull request per repository. Apart, each rewrites a neighbouring line of
+  `Cargo.toml`, and every merge leaves the rest conflicting until the next run rebases them. A 0.x minor changes
+  the API and keeps a pull request of its own, as does a major.
 - **`kube` and `k8s-openapi` move together.** `kube` pins the `k8s-openapi` minor it builds against, so they
   arrive as one pull request, a `kube` major included, instead of two that each fail to build.
 - **Requirements follow the release.** An update raises the requirement to the version it brings, `"1.0.151"` to

@@ -10,6 +10,25 @@
   "rangeStrategy": "bump",
   "packageRules": [
     {
+      "description": "Compatible updates arrive as one pull request: apart, each rewrites a neighbouring line of Cargo.toml, and every merge leaves the others conflicting until Renovate rebases them.",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchCurrentVersion": "!/^0\\./",
+      "groupName": "non-major",
+      "groupSlug": "non-major"
+    },
+    {
+      "description": "Below 1.0 only a patch is compatible; a 0.x minor changes the API and keeps a pull request of its own.",
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "matchCurrentVersion": "/^0\\./",
+      "groupName": "non-major",
+      "groupSlug": "non-major"
+    },
+    {
       "description": "kube pins the k8s-openapi minor it builds against, and two k8s-openapi versions in one build fail its build script. A kube major and the k8s-openapi minor it needs would otherwise land in two branches, each failing to build alone.",
       "matchPackageNames": [
         "kube",
