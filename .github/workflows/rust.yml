@@ -99,17 +99,17 @@ jobs:
           key: ${{ env.RUST_TARGET }}
 
       - name: clippy
-        run: cargo clippy --target "$RUST_TARGET" --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --target "$RUST_TARGET" --all-targets --all-features -- -D warnings
 
       - name: test
-        run: cargo test --target "$RUST_TARGET"
+        run: cargo test --locked --target "$RUST_TARGET"
 
       - name: build
         env:
           BUILD_ARGS: ${{ inputs.build-args }}
         run: |
           read -ra args <<<"$BUILD_ARGS"
-          cargo build --release --target "$RUST_TARGET" "${args[@]}"
+          cargo build --release --locked --target "$RUST_TARGET" "${args[@]}"
 
       - name: Stage binaries at their TARGETARCH path
         if: inputs.binaries != ''
@@ -166,17 +166,17 @@ jobs:
       - name: clippy
         run: |
           read -ra args <<<"$WINDOWS_ARGS"
-          cargo clippy --target ${{ matrix.rust_target }} --all-targets --all-features "${args[@]}" -- -D warnings
+          cargo clippy --locked --target ${{ matrix.rust_target }} --all-targets --all-features "${args[@]}" -- -D warnings
 
       - name: test
         run: |
           read -ra args <<<"$WINDOWS_ARGS"
-          cargo test --target ${{ matrix.rust_target }} "${args[@]}"
+          cargo test --locked --target ${{ matrix.rust_target }} "${args[@]}"
 
       - name: build
         run: |
           read -ra args <<<"$WINDOWS_ARGS"
-          cargo build --release --target ${{ matrix.rust_target }} "${args[@]}"
+          cargo build --release --locked --target ${{ matrix.rust_target }} "${args[@]}"
 
       - name: Stage binaries at their TARGETARCH path
         if: inputs.windows-binaries != ''
