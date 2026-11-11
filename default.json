@@ -7,5 +7,17 @@
   ],
   "semanticCommits": "enabled",
   "rebaseWhen": "behind-base-branch",
-  "rangeStrategy": "bump"
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "kube pins the k8s-openapi minor it builds against, and two k8s-openapi versions in one build fail its build script. A kube major and the k8s-openapi minor it needs would otherwise land in two branches, each failing to build alone.",
+      "matchPackageNames": [
+        "kube",
+        "kube-*",
+        "k8s-openapi"
+      ],
+      "groupName": "kube",
+      "separateMajorMinor": false
+    }
+  ]
 }

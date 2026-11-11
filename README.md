@@ -28,6 +28,8 @@ What the preset sets on top of `config:recommended`:
 - **Rebased whenever `main` moves.** A pull request's checks ran against the `main` it was opened on; merging
   another one first leaves that combination untested. `rebaseWhen: behind-base-branch` has the next run rebase
   every pull request that has fallen behind, so its checks run again on top of what was merged.
+- **`kube` and `k8s-openapi` move together.** `kube` pins the `k8s-openapi` minor it builds against, so they
+  arrive as one pull request, a `kube` major included, instead of two that each fail to build.
 - **Requirements follow the release.** An update raises the requirement to the version it brings, `"1.0.151"` to
   `"1.0.154"`, a release inside the range included. A repository with `Cargo.lock` gets the lock file moved in
   the same pull request; one without has no other place where that release would show up. A library that must
