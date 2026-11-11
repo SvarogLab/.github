@@ -52,12 +52,13 @@ Reusable workflows under [`.github/workflows/`](.github/workflows/), called by a
 neither moved nor deleted - so a caller always runs exactly the workflows it was last checked against. A change
 here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to it in a pull request of its own.
 
-- [`rust.yml`](.github/workflows/rust.yml) - `cargo fmt`, `cargo audit`, and per arch on its own runner
-  clippy, tests and the release build: Linux on the musl target for amd64 and arm64, and, when `windows-args` is
-  set, Windows on the MSVC target for amd64 and arm64. Code behind `cfg(windows)` compiles to nothing on Linux,
-  so a Windows part of a workspace is checked only by the Windows job. `binaries` and `windows-binaries` name the
-  binaries each release build uploads as `binaries-*` artifacts. A crate linking a system library that musl has
-  no build of, such as pcsc-lite, sets `linux-libc: gnu` and names the `-dev` package in `apt-packages`.
+- [`rust.yml`](.github/workflows/rust.yml) - `cargo fmt`, `cargo audit`, and per arch on its own runner clippy, tests
+  and the release build: Linux on the musl target for amd64 and arm64, and, when `windows-args` is set, Windows on the
+  MSVC target for amd64 and arm64. All of them run with `--locked`: the caller commits `Cargo.lock`, and one out of step
+  with `Cargo.toml` fails the run instead of being rewritten in it. Code behind `cfg(windows)` compiles to nothing on
+  Linux, so a Windows part of a workspace is checked only by the Windows job. `binaries` and `windows-binaries` name the
+  binaries each release build uploads as `binaries-*` artifacts. A crate linking a system library that musl has no build
+  of, such as pcsc-lite, sets `linux-libc: gnu` and names the `-dev` package in `apt-packages`.
 - [`release-pr.yml`](.github/workflows/release-pr.yml) - opens the release pull request: the next version
   `git-cliff` computes from the commits since the last tag, the version files moved to it by the caller's `bump`
   shell, and `CHANGELOG.md` regenerated. The pull request is opened with `GITHUB_TOKEN`, so no workflow runs on it;
@@ -135,5 +136,5 @@ jobs:
       bump: sed -i "s/^version = \".*\"/version = \"$VERSION_NUMBER\"/" Cargo.toml
 ```
 
-The daily `schedule` run matters because no repository here commits `Cargo.lock`: a release inside a
-`Cargo.toml` range can break the build without any pull request, and only a run against `main` shows it.
+The daily `schedule` run matters because an advisory published against a locked version reaches no pull
+request: only `cargo audit` on `main` shows it.
