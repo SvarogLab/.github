@@ -65,8 +65,8 @@ here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to
   of, such as pcsc-lite, sets `linux-libc: gnu` and names the `-dev` package in `apt-packages`.
 - [`release-pr.yml`](.github/workflows/release-pr.yml) - opens the release pull request: the next version `git-cliff`
   computes from the commits since the last tag, the version files moved to it by the caller's `bump` shell, `Cargo.lock`
-  moved with them where the caller commits one, and `CHANGELOG.md` regenerated. The pull request is opened with
-  `GITHUB_TOKEN`, so no workflow runs on it; its only changes are the version and the changelog.
+  moved with them where the caller commits one, and `CHANGELOG.md` regenerated. The branch is pushed and the pull
+  request opened as the CI app below, so CI runs on it.
 - [`tag-release.yml`](.github/workflows/tag-release.yml) - tags the merged `chore: release vX.Y.Z` commit on
   `main`. A tag pushed with `GITHUB_TOKEN` starts no workflow, so the caller releases in the same run.
 - [`release.yml`](.github/workflows/release.yml) - creates the GitHub Release for the tag, with the binaries
@@ -133,12 +133,23 @@ jobs:
   release-pr:
     uses: SvarogLab/.github/.github/workflows/release-pr.yml@v1
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     with:
       version: ${{ inputs.version }}
       bump: sed -i "s/^version = \".*\"/version = \"$VERSION_NUMBER\"/" Cargo.toml
+    secrets:
+      CI_APP_PRIVATE_KEY: ${{ secrets.CI_APP_PRIVATE_KEY }}
 ```
 
 The daily `schedule` run matters because an advisory published against a locked version reaches no pull
 request: only `cargo audit` on `main` shows it.
+
+### CI app
+
+`release-pr.yml` pushes and opens its pull request as the organisation's GitHub App. The organisation needs:
+
+- a GitHub App (Settings → Developer settings → GitHub Apps), installable only on that account, without a
+  webhook, with Contents and Pull requests set to Read and write, installed on the calling repositories;
+- its client ID in the organisation variable `CI_APP_CLIENT_ID`;
+- its private key in the organisation secret `CI_APP_PRIVATE_KEY`, visible to the calling repositories only: the
+  key writes to every repository the app is installed on.
