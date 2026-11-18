@@ -2,6 +2,7 @@
 # version files moved to it, and CHANGELOG.md regenerated with git-cliff. Merging the PR releases
 # it through tag-release.yml. The commit is authored by github-actions[bot], so no personal
 # address reaches the history.
+# What GITHUB_TOKEN pushes or opens starts no CI, so both go through the CI app (README.md).
 name: Release PR
 
 on:
@@ -15,6 +16,9 @@ on:
         description: Version to release, such as v1.14.4+sm.1; defaults to what git-cliff computes from the commits.
         type: string
         default: ""
+    secrets:
+      CI_APP_PRIVATE_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -23,12 +27,20 @@ jobs:
   release-pr:
     runs-on: ubuntu-26.04
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
+      - id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
         with:
@@ -37,7 +49,7 @@ jobs:
       - name: Open the release PR
         id: open
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BUMP: ${{ inputs.bump }}
           REQUESTED: ${{ inputs.version }}
         run: |
@@ -53,7 +65,7 @@ jobs:
           bash -euo pipefail -c "$BUMP"
           # Cargo.lock records the workspace's own versions too: without this the release commit
           # fails `cargo build --locked`. The runner image's own cargo runs it, so no third-party
-          # action runs with this job's write token.
+          # action runs with the app's token in reach.
           if [ -f Cargo.lock ]; then cargo update --workspace; fi
           git cliff --tag "$VERSION" -o CHANGELOG.md
           git add -u
