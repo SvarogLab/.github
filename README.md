@@ -22,6 +22,8 @@ What the preset sets on top of `config:recommended`:
 - **Conventional commit subjects.** `semanticCommits` is forced on rather than guessed from history, so every
   update is `fix(deps): ...` for a runtime dependency and `chore(deps): ...` for the rest, and `git-cliff` files
   it correctly in the changelog.
+- **The shared workflows stay put.** A caller's `uses: SvarogLab/.github/...@vX` is left alone: a new tag can
+  need new inputs or secrets from the caller, so it moves by hand.
 - **No dependency dashboard issue.** Open pull requests are the list of what is pending.
 - **No pull request caps.** Each run opens one for every update published since the last, instead of spreading
   them over later runs.

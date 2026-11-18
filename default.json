@@ -10,6 +10,12 @@
   "rangeStrategy": "bump",
   "packageRules": [
     {
+      "description": "The shared workflows are called by an immutable tag that moves by hand: a new one can need new inputs or secrets from the caller.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["SvarogLab/.github"],
+      "enabled": false
+    },
+    {
       "description": "Compatible updates arrive as one pull request: apart, each rewrites a neighbouring line of Cargo.toml, and every merge leaves the others conflicting until Renovate rebases them.",
       "matchUpdateTypes": [
         "minor",

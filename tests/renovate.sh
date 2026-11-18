@@ -128,4 +128,22 @@ git -C "$tmp/nonmajor" add . && git -C "$tmp/nonmajor" commit -qm fixture
 got=$(branches "$tmp/nonmajor") || { echo "FAIL compatible updates share one branch: no result"; exit 1; }
 check "compatible updates share one branch" "renovate/base64-0.x renovate/non-major" "$got"
 
+# A new version of the shared workflows can need new inputs or secrets from the caller, so the caller moves to
+# it by hand. The other action shows the workflow was looked up at all.
+scratch_repo "$tmp/workflows"
+mkdir -p "$tmp/workflows/.github/workflows"
+cat >"$tmp/workflows/.github/workflows/ci.yml" <<'YAML'
+on: push
+jobs:
+  rust:
+    uses: SvarogLab/.github/.github/workflows/rust.yml@v1
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+YAML
+git -C "$tmp/workflows" add . && git -C "$tmp/workflows" commit -qm fixture
+got=$(branches "$tmp/workflows") || { echo "FAIL shared workflows move by hand: no result"; exit 1; }
+check "shared workflows move by hand" "renovate/actions-checkout-7.x" "$got"
+
 exit $fail
