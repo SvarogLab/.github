@@ -1,5 +1,6 @@
 # GitHub Release for a version tag. Its assets are binaries rust.yml built in the tag's own run
-# (download-binaries) or files in the tag's checkout; nothing is rebuilt here.
+# (download-binaries), the chart chart.yml packaged in it (download-chart) or files in the tag's
+# checkout; nothing is rebuilt here.
 name: Release
 
 on:
@@ -7,6 +8,10 @@ on:
     inputs:
       download-binaries:
         description: Download the run's rust.yml `binaries-*` artifacts into `binaries/` before prepare, as `binaries/<arch>/release/` and `binaries/windows-<arch>/release/`.
+        type: boolean
+        default: false
+      download-chart:
+        description: Download the run's chart.yml `chart` artifact into `chart/` and attach the chart with the assets.
         type: boolean
         default: false
       prepare:
@@ -57,6 +62,12 @@ jobs:
           pattern: binaries-*
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        if: inputs.download-chart
+        with:
+          name: chart
+          path: chart/
+
       - name: Prepare the release assets
         if: inputs.prepare != ''
         env:
@@ -64,14 +75,20 @@ jobs:
         run: bash -euo pipefail -c "$PREPARE"
 
       - name: Create the GitHub Release
+        id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ASSETS: ${{ inputs.assets }}
           LATEST: ${{ inputs.latest }}
+          DOWNLOAD_CHART: ${{ inputs.download-chart }}
         # The notes are the tag's CHANGELOG.md section: GitHub's generated notes would list the
         # release PR itself and its bot author as a new contributor.
         run: |
           read -ra assets <<<"$ASSETS"
+          if [ "$DOWNLOAD_CHART" = true ]; then
+            shopt -s failglob
+            assets+=(chart/*.tgz)
+          fi
           git cliff --current --strip all > "$RUNNER_TEMP/notes.md"
           gh release create "$RELEASE_TAG" "${assets[@]}" \
             --title "$RELEASE_TAG" \

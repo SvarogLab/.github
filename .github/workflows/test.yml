@@ -12,10 +12,24 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-26.04
+    # tests/image.sh pushes to it the way image.yml pushes to ghcr.io.
+    services:
+      registry:
+        image: registry:3
+        ports: ["5000:5000"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      # The builder image.yml runs on, for tests/image.sh; host networking lets it reach the job's
+      # registry on localhost.
+      - uses: docker/setup-buildx-action@v4
+        with:
+          driver-opts: network=host
+
+      # tests/chart.sh packages a chart the way chart.yml does.
+      - uses: azure/setup-helm@v5
 
       # tests/renovate.sh runs Renovate itself, which needs a newer Node than the runner's.
       - uses: actions/setup-node@v7
@@ -29,6 +43,7 @@ jobs:
 
       - name: Run tests/*.sh
         env:
+          TEST_REGISTRY: localhost:5000
           # Renovate's lookups on github.com are rate-limited without one.
           GITHUB_COM_TOKEN: ${{ github.token }}
         run: |
