@@ -72,8 +72,19 @@ here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to
   request opened as the CI app below, so CI runs on it.
 - [`tag-release.yml`](.github/workflows/tag-release.yml) - tags the merged `chore: release vX.Y.Z` commit on
   `main`. A tag pushed with `GITHUB_TOKEN` starts no workflow, so the caller releases in the same run.
+- [`image.yml`](.github/workflows/image.yml) - builds the caller's Dockerfile for amd64 and arm64, each on its own
+  runner, from the binaries `rust.yml` built in the same run, and pushes one manifest as
+  `ghcr.io/<owner>/<repo>:<tag>`. The Dockerfile copies `target/${TARGETARCH}/release/<name>` and compiles nothing.
+  With `push: false` a pull request builds the same Dockerfile from empty placeholders for `binaries` and pushes
+  nothing, so a Dockerfile or `.dockerignore` the release would fail on fails there.
+- [`chart.yml`](.github/workflows/chart.yml) - packages the Helm chart in `helm/`, or the directory `path` names, at
+  the tag's version, bare, with the tag as its `appVersion`. A chart whose image defaults to `ghcr.io/<owner>/<repo>`
+  tagged `.Chart.AppVersion` then deploys the image `image.yml` pushed under that tag. It pushes the chart to
+  `oci://ghcr.io/<owner>/<repo>`, where it lands as `ghcr.io/<owner>/<repo>/<chart name>`, beside the image rather
+  than on it.
 - [`release.yml`](.github/workflows/release.yml) - creates the GitHub Release for the tag, with the binaries
-  `rust.yml` built in the same run and the tag's `CHANGELOG.md` section as its notes.
+  `rust.yml` built in the same run, the chart `chart.yml` packaged in it with `download-chart: true`, and the tag's
+  `CHANGELOG.md` section as its notes.
 
 A repository releasing its binaries wires them together like this; `release-pr.yml` is started by hand from
 the Actions tab:
@@ -146,6 +157,52 @@ jobs:
 
 The daily `schedule` run matters because an advisory published against a locked version reaches no pull
 request: only `cargo audit` on `main` shows it.
+
+A repository that also ships an image and a chart puts them between the tag and the release. A pull request
+checks the Dockerfile; the chart pushes after the image it names:
+
+```yaml
+  image-check:
+    if: github.event_name == 'pull_request'
+    uses: SvarogLab/.github/.github/workflows/image.yml@v1
+    permissions:
+      contents: read
+      packages: write
+    with:
+      push: false
+      binaries: example
+
+  image:
+    needs: tag
+    if: needs.tag.outputs.tag != ''
+    uses: SvarogLab/.github/.github/workflows/image.yml@v1
+    permissions:
+      contents: read
+      packages: write
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+
+  chart:
+    needs: [tag, image]
+    uses: SvarogLab/.github/.github/workflows/chart.yml@v1
+    permissions:
+      contents: read
+      packages: write
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+
+  release:
+    needs: [tag, chart]
+    uses: SvarogLab/.github/.github/workflows/release.yml@v1
+    permissions:
+      contents: write
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+      download-binaries: true
+      download-chart: true
+      prepare: cp binaries/amd64/release/example example-linux-amd64
+      assets: example-linux-amd64
+```
 
 ### CI app
 
