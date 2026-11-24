@@ -63,6 +63,20 @@ jobs:
           cargo install cargo-audit --locked
           cargo audit
 
+  # The caller's deny.toml is the policy: the licenses its own license can ship with, and the
+  # registries and git sources it takes crates from.
+  deny:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        with:
+          tool: cargo-deny@0.22.0
+
+      - id: deny
+        run: cargo deny --locked check licenses bans sources
+
   build:
     runs-on: ${{ matrix.runner }}
     strategy:
