@@ -58,7 +58,8 @@ Reusable workflows under [`.github/workflows/`](.github/workflows/), called by a
 neither moved nor deleted - so a caller always runs exactly the workflows it was last checked against. A change
 here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to it in a pull request of its own.
 
-- [`rust.yml`](.github/workflows/rust.yml) - `cargo fmt`, `cargo audit`, and per arch on its own runner clippy, tests
+- [`rust.yml`](.github/workflows/rust.yml) - `cargo fmt`, `cargo audit`, `cargo deny check licenses bans sources`
+  against the caller's `deny.toml` (a repository without one fails it), and per arch on its own runner clippy, tests
   and the release build: Linux on the musl target for amd64 and arm64, and, when `windows-args` is set, Windows on the
   MSVC target for amd64 and arm64. All of them run with `--locked`: the caller commits `Cargo.lock`, and one out of step
   with `Cargo.toml` fails the run instead of being rewritten in it. Code behind `cfg(windows)` compiles to nothing on

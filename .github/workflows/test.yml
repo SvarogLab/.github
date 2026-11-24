@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: 24
 
+      # tests/deny.sh runs rust.yml's cargo deny step, at the version that step installs.
+      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        with:
+          tool: cargo-deny@0.22.0
+
       - name: Run tests/*.sh
         env:
           # Renovate's lookups on github.com are rate-limited without one.
