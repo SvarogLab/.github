@@ -77,10 +77,11 @@ here ships as a new tag (`v1.1`, then `v1.2`, ...), and each repository moves to
   `ghcr.io/<owner>/<repo>:<tag>`. The Dockerfile copies `target/${TARGETARCH}/release/<name>` and compiles nothing.
   With `push: false` a pull request builds the same Dockerfile from empty placeholders for `binaries` and pushes
   nothing, so a Dockerfile or `.dockerignore` the release would fail on fails there.
-- [`chart.yml`](.github/workflows/chart.yml) - packages the Helm chart in `helm/` at the tag's version, bare, with
-  the tag as its `appVersion`, so by default it deploys the image `image.yml` pushed under that tag. It pushes the
-  chart to `oci://ghcr.io/<owner>/<repo>`, where it lands as `ghcr.io/<owner>/<repo>/<chart name>`, beside the
-  image rather than on it.
+- [`chart.yml`](.github/workflows/chart.yml) - packages the Helm chart in `helm/`, or the directory `path` names, at
+  the tag's version, bare, with the tag as its `appVersion`. A chart whose image defaults to `ghcr.io/<owner>/<repo>`
+  tagged `.Chart.AppVersion` then deploys the image `image.yml` pushed under that tag. It pushes the chart to
+  `oci://ghcr.io/<owner>/<repo>`, where it lands as `ghcr.io/<owner>/<repo>/<chart name>`, beside the image rather
+  than on it.
 - [`release.yml`](.github/workflows/release.yml) - creates the GitHub Release for the tag, with the binaries
   `rust.yml` built in the same run, the chart `chart.yml` packaged in it with `download-chart: true`, and the tag's
   `CHANGELOG.md` section as its notes.
@@ -154,6 +155,9 @@ jobs:
       CI_APP_PRIVATE_KEY: ${{ secrets.CI_APP_PRIVATE_KEY }}
 ```
 
+The daily `schedule` run matters because an advisory published against a locked version reaches no pull
+request: only `cargo audit` on `main` shows it.
+
 A repository that also ships an image and a chart puts them between the tag and the release. A pull request
 checks the Dockerfile; the chart pushes after the image it names:
 
@@ -199,9 +203,6 @@ checks the Dockerfile; the chart pushes after the image it names:
       prepare: cp binaries/amd64/release/example example-linux-amd64
       assets: example-linux-amd64
 ```
-
-The daily `schedule` run matters because an advisory published against a locked version reaches no pull
-request: only `cargo audit` on `main` shows it.
 
 ### CI app
 

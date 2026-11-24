@@ -39,7 +39,9 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
           CHART: ${{ inputs.path }}
-        run: helm package "$CHART" --version "${TAG#v}" --app-version "$TAG" -d "$RUNNER_TEMP/chart"
+        run: |
+          [ -n "$TAG" ] || { echo "::error::the tag input is empty: run chart.yml only for a release"; exit 1; }
+          helm package "$CHART" --version "${TAG#v}" --app-version "$TAG" -d "$RUNNER_TEMP/chart"
 
       # An OCI reference is lowercase; an organisation's name need not be.
       - name: Push the chart

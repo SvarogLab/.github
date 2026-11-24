@@ -17,4 +17,9 @@ import sys, yaml
 c = yaml.safe_load(sys.stdin)
 print(c["version"], c["appVersion"])')"
 
+rm -rf "$work/chart"
+(cd "$work" && env TAG= CHART=helm RUNNER_TEMP="$work" bash -euo pipefail -c "$package" >/dev/null 2>&1)
+check "an empty tag fails before packaging" "1 nothing packaged" \
+  "$? $([ -e "$work/chart" ] && echo packaged || echo "nothing packaged")"
+
 exit $fail

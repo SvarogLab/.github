@@ -12,7 +12,11 @@ build=$(step "$yml" build build) || { echo "FAIL: no step build"; exit 1; }
 digest=$(step "$yml" build digest) || { echo "FAIL: no step digest"; exit 1; }
 manifest=$(step "$yml" merge manifest) || { echo "FAIL: no step manifest"; exit 1; }
 
-case $(uname -m) in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; esac
+case $(uname -m) in
+  x86_64) arch=amd64 ;;
+  aarch64) arch=arm64 ;;
+  *) echo "FAIL: no image arch for $(uname -m)"; exit 1 ;;
+esac
 work=$(mktemp -d)
 
 # An artifact keeps no file modes: the downloaded binaries arrive as 0644.
@@ -58,17 +62,22 @@ check "a check builds from placeholders" "0" "$(build "$work/check" false)"
 fixture "$work/broken" '*\n'
 check "a check fails on a .dockerignore the release would fail on" "1" "$(build "$work/broken" false 2>/dev/null)"
 
-# The release path against a registry the test runs: push by digest under the lowercased repository,
-# export the digest the way the merge reads it, and tag the manifest.
+# The release path against a registry the test runs: each arch pushes by digest under the lowercased
+# repository and exports the digest the way the merge reads it, and the merge tags one manifest for
+# both. A Dockerfile from scratch builds for either arch without emulation.
 if [ -n "${TEST_REGISTRY:-}" ]; then
-  check "pushes by digest" "0" "$(build "$work/check" true "$TEST_REGISTRY")"
-  (env RUNNER_TEMP="$work" bash -euo pipefail -c "$digest" >/dev/null 2>&1)
-  check "exports the digest" "0" "$?"
+  for a in amd64 arm64; do
+    (cd "$work/check" && env ARCH="$a" BINARIES=app bash -euo pipefail -c "$placeholders" >/dev/null 2>&1)
+    arch=$a
+    check "pushes $a by digest" "0" "$(build "$work/check" true "$TEST_REGISTRY")"
+    (env RUNNER_TEMP="$work" bash -euo pipefail -c "$digest" >/dev/null 2>&1)
+    check "exports the $a digest" "0" "$?"
+  done
   (cd "$work/digests" && env REGISTRY="$TEST_REGISTRY" GITHUB_REPOSITORY=O/Demo TAG=v1.2.3 \
     bash -euo pipefail -c "$manifest" >"$work/log" 2>&1) || tail -15 "$work/log" >&2
-  check "the tag names a manifest for the built arch" "linux/$arch" \
+  check "the tag names a manifest for both arches" "linux/amd64 linux/arm64" \
     "$(docker buildx imagetools inspect "$TEST_REGISTRY/o/demo:v1.2.3" --raw 2>/dev/null |
-      jq -r '.manifests[].platform | select(.os != "unknown") | "\(.os)/\(.architecture)"')"
+      jq -r '.manifests[].platform | select(.os != "unknown") | "\(.os)/\(.architecture)"' | LC_ALL=C sort | paste -sd' ')"
 else
   echo "skip the push: no TEST_REGISTRY"
 fi

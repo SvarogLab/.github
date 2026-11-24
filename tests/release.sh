@@ -10,12 +10,13 @@ printf '#!/usr/bin/env bash\necho notes\n' > "$bin/git-cliff"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" > "$GH_LOG"\n' > "$bin/gh"
 chmod +x "$bin/gh" "$bin/git-cliff"
 
-# attached <dir> <download-chart>: the files gh was asked to attach, sorted, or "step failed".
+# attached <dir> <download-chart>: the files gh was asked to attach - its arguments after
+# `release create <tag>` up to the first flag - sorted, or "step failed".
 attached() {
   (cd "$1" && env PATH="$bin:$PATH" GH_LOG="$work/gh.log" RUNNER_TEMP="$work" RELEASE_TAG=v1.2.3 \
     ASSETS="app-linux-amd64" LATEST=true DOWNLOAD_CHART="$2" bash -euo pipefail -c "$script" >/dev/null 2>&1) ||
     { echo "step failed"; return; }
-  sed -n '4,/^--title$/p' "$work/gh.log" | grep -v '^--title$' | LC_ALL=C sort | paste -sd' '
+  awk 'NR > 3 && /^--/ { exit } NR > 3' "$work/gh.log" | LC_ALL=C sort | paste -sd' '
 }
 
 mkdir -p "$work/plain" "$work/chart/chart"
